@@ -6,7 +6,6 @@
 #include <iostream>
 #include <immintrin.h>
 #include <cassert>
-#include <Eigen/Eigen>
 
 float frand() {
     return (float)rand() / RAND_MAX * 2 - 1;
@@ -19,91 +18,114 @@ constexpr float dt = 0.01f;
 constexpr float eps_sqr = eps * eps ;
 constexpr float G_dt = G * dt ;
 
-// using P = Eigen::Vector4f; 
-// using V = Eigen::Vector4f;
-
-struct alignas(16) P{
-    float x , y , z , w;
-    auto data() noexcept -> float * {return &x;}
-};
-
-struct alignas(16) V{
-    float x , y , z , w; 
-    auto data() noexcept -> float * { return &x ;}
-};
-
+template<std::size_t N>
 struct Star {
-    alignas(16) P p[N] ;
-    alignas(16) V v[N] ;
-    float mass[N];
+    alignas(64) float px[N] , py[N] , pz[N] ;
+    alignas(64) float vx[N] , vy[N] , vz[N] ;
+    alignas(64) float mass[N];
+};
 
-    std::size_t tot{};
+Star<N> stars;
 
-    void push_back(
-        float _px , float _py , float _pz ,
-        float _vx , float _vy , float _vz ,
-        float _m){
-
-        auto i = tot++ ;
-        p[i] = {_px , _py , _pz , eps};
-        v[i] = {_vx , _vy , _vz , 0.f};
-        mass[i] = _m;        
-    }
-
-    constexpr std::size_t size() const {return N ;}
-
-}stars;
-
-void init() {
-    for (std::size_t i {}; i < N ; ++i) {
-        stars.push_back(
-            frand(), frand(), frand(),
-            frand(), frand(), frand(),
-            frand() + 1
-        );
+void init(){
+    for(std::size_t i {} ; i < N ; ++i) {
+        stars.px[i] = frand() , stars.py[i] = frand() , stars.pz[i] = frand() ;
+        stars.vx[i] = frand() , stars.vy[i] = frand() , stars.vz[i] = frand() ;
+        stars.mass[i] = frand() + 1;
     }
 }
 
-void step_sse() {
+using fsimd_t = __m256;
+inline auto set1    (float f)               { return _mm256_set1_ps(f);}
+inline auto load    (const float * f)       { return _mm256_load_ps(f);}
+inline void store   (float * f , fsimd_t a) {        _mm256_store_ps(f , a);}
+inline auto add     (fsimd_t a , fsimd_t b) { return _mm256_add_ps(a ,b) ;}
+inline auto sub     (fsimd_t a , fsimd_t b) { return _mm256_sub_ps(a ,b) ;}
+inline auto mul     (fsimd_t a , fsimd_t b) { return _mm256_mul_ps(a ,b) ;}
+inline auto div     (fsimd_t a , fsimd_t b) { return _mm256_div_ps(a ,b) ;}
+inline auto sqrt    (fsimd_t a)             { return _mm256_sqrt_ps(a); }
+inline auto rsqrt   (fsimd_t a)             { return _mm256_rsqrt_ps(a);}
+inline auto rcp     (fsimd_t a)             { return _mm256_rcp_ps(a);  }
+
+void step_avx() {
+
+    auto eps_sqr8 = set1(eps_sqr);
 
     for(std::size_t j{} ; j < N ; ++j ){
-        float m_G = stars.mass[j] * G_dt ;
-        auto pj = _mm_load_ps((stars.p[j].data()));
+        auto mg_dt = set1(G * stars.mass[j] * dt);
+        auto xj = set1(stars.px[j]);
+        auto yj = set1(stars.py[j]);
+        auto zj = set1(stars.pz[j]);
 
-        for(std::size_t i {} ; i < N ; ++i ) {
-            auto pi = _mm_load_ps((stars.p[i].data()));
-            auto v = _mm_load_ps((stars.v[i].data()));
+        auto unroll_body = [&](std::size_t i) {
+            auto xi = load(&stars.px[i]);
+            auto yi = load(&stars.py[i]);
+            auto zi = load(&stars.pz[i]);
 
-            auto d = _mm_sub_ps(pj , pi);      // pj - pi 
-            auto d_sqr = _mm_dp_ps(d, d , 0x7f);
-            float d2 = d_sqr.m128_f32[0] + eps_sqr ;
-            d2 *= std::sqrt(d2);
-            float m_G_inv_d2 = m_G / d2 ;
-            
-            auto res = _mm_mul_ps(d , _mm_set_ps(0.f , m_G_inv_d2 , m_G_inv_d2 , m_G_inv_d2)) ;
-            res = _mm_add_ps(v , res);
-            _mm_store_ps((stars.v[i].data()) , res);
-        }
+            auto dx = sub(xj , xi);
+            auto dy = sub(yj , yi);
+            auto dz = sub(zj , zi);
+
+            auto x2 = mul(dx , dx);
+            auto y2 = mul(dy , dy);
+            auto z2 = mul(dz , dz);
+
+            auto d2 = add(add(x2 , y2), add(z2 , eps_sqr8));
+            auto inv_d2 = rcp(d2);
+            auto inv_d = rsqrt(d2);
+            auto mg_dt_invd3 = mul(mul(mg_dt , inv_d2) , inv_d);
+
+            auto vx = load(&stars.vx[i]);
+            auto vy = load(&stars.vy[i]);
+            auto vz = load(&stars.vz[i]);
+
+            auto new_vx = add(mul(mg_dt_invd3 , dx) , vx);
+            auto new_vy = add(mul(mg_dt_invd3 , dy) , vy);
+            auto new_vz = add(mul(mg_dt_invd3 , dz) , vz);
+
+            store(&stars.vx[i] , new_vx);
+            store(&stars.vy[i] , new_vy);
+            store(&stars.vz[i] , new_vz);
+        };
+
+        unroll_body(0);
+        unroll_body(8);
+        unroll_body(16);
+        unroll_body(24);
+        unroll_body(32);
+        unroll_body(40);
+
+        // for(std::size_t i{} ; i < N ; i += 8){
+        //     unroll_body(i);
+        // }
     }
 
-    for(std::size_t i {} ; i < N; ++i){
-        auto v = _mm_load_ps(stars.v[i].data());
-        auto p = _mm_load_ps(stars.p[i].data());
-        __m128 t{dt , dt , dt , 0.f};
-        _mm_store_ps(stars.p[i].data() , _mm_add_ps(p , _mm_mul_ps(v, t)));
+    for(std::size_t i {} ; i < N; i += 8) {
+        auto dt8 = set1(dt);
+        auto vx = load(&stars.vx[i]);
+        auto vy = load(&stars.vy[i]);
+        auto vz = load(&stars.vz[i]);
+
+        auto new_px = add(load(&stars.px[i]) , mul(vx , dt8));
+        auto new_py = add(load(&stars.py[i]) , mul(vy , dt8));
+        auto new_pz = add(load(&stars.pz[i]) , mul(vz , dt8));
+
+        store(&stars.px[i] , new_px);
+        store(&stars.py[i] , new_py);
+        store(&stars.pz[i] , new_pz);
     }
 }
 
 float calc() {
     float energy = 0;
     for(std::size_t i {} ; i < N;  ++i ){
-        float v2 = stars.v[i].x * stars.v[i].x + stars.v[i].y * stars.v[i].y + stars.v[i].z * stars.v[i].z;
+        float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] * stars.vz[i];
         energy += stars.mass[i] * v2 / 2; 
         
         for(std::size_t j {} ; j < N ; ++j) {
-            float dx = stars.p[j].x - stars.p[i].x;
-            float dy = stars.p[j].y - stars.p[i].y;
-            float dz = stars.p[j].z - stars.p[i].z;
+            float dx = stars.px[j] - stars.px[i];
+            float dy = stars.py[j] - stars.py[i];
+            float dz = stars.pz[j] - stars.pz[i];
             float d2 = dx * dx + dy * dy + dz * dz + eps * eps ;
             energy -= stars.mass[j] * stars.mass[i] *  G / std::sqrt(d2) / 2 ;
         }
@@ -125,7 +147,7 @@ int main() {
     std::cout << "Initial energy: "<< calc() << std::endl;
     auto dt = benchmark([&] {
         for (int i = 0; i < 100000; i++)
-            step_sse();
+            step_avx();
     });
     std::cout << "Final energy: " << calc() << std::endl;
     std::cout << "Time elapsed: " << dt << " ms" << std::endl;
