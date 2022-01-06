@@ -6,4 +6,8 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+if (MSVC)
+    add_compile_options(/fp:fast /Oi /Ot /Oy /GT /GL /FAs)
+endif()
+
 add_executable(main main.cpp)
