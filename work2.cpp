@@ -5,6 +5,7 @@
 #include <cmath>
 #include <array>
 #include <immintrin.h>
+#include <xmmintrin.h>
 
 float frand() {
     return (float)rand() / RAND_MAX * 2 - 1;
@@ -89,9 +90,11 @@ void init2() {
         stars2[0][i] = stars[i].px;
         stars2[1][i] = stars[i].py;
         stars2[2][i] = stars[i].pz;
+
         stars2[3][i] = stars[i].vx;
         stars2[4][i] = stars[i].vy;
         stars2[5][i] = stars[i].vz;
+
         stars2[6][i] = stars[i].mass;
     }
 }
@@ -111,37 +114,77 @@ inline float Q_rsqrt(float number)
     return y;
 }
 
+
+// #define HAVE_AVX512
+#ifdef HAVE_AVX512
+#define NSTEP 16
+#define LOAD_PS(_P) _mm512_load_ps(_P)
+#define STORE_PS(_P, _F) _mm512_store_ps(_P, _F)
+#define SET1_PS(_F) _mm512_set1_ps(_F)
+#define MUL_PS(_a, _b) _mm512_mul_ps(_a, _b)
+#define SUB_PS(_a, _b) _mm512_sub_ps(_a, _b)
+#define ADD_PS(_a, _b) _mm512_add_ps(_a, _b)
+#define DIV_PS(_a, _b) _mm512_div_ps(_a, _b)
+#define RSQRT_PS(_a) _mm512_rsqrt14_ps(_a)
+#else
+#define NSTEP 8
+#define LOAD_PS(_P) _mm256_load_ps(_P)
+#define STORE_PS(_P, _F) _mm256_store_ps(_P, _F)
+#define SET1_PS(_F) _mm256_set1_ps(_F)
+#define MUL_PS(_a, _b) _mm256_mul_ps(_a, _b)
+#define SUB_PS(_a, _b) _mm256_sub_ps(_a, _b)
+#define ADD_PS(_a, _b) _mm256_add_ps(_a, _b)
+#define DIV_PS(_a, _b) _mm256_div_ps(_a, _b)
+#define RSQRT_PS(_a) _mm256_rsqrt_ps(_a)
+#endif
+
 void step2() {
     auto other = stars2;
-    for (int i=0; i<NSTAR; i++) {
-        float vx{0}, vy{0}, vz{0};
+    for (int i=0; i<NSTAR; i+=NSTEP) {
+        auto star_px = LOAD_PS(&stars2[0][i]);
+        auto star_py = LOAD_PS(&stars2[1][i]);
+        auto star_pz = LOAD_PS(&stars2[2][i]);
+
+        auto vxx = LOAD_PS(&stars2[3][i]);
+        auto vyy = LOAD_PS(&stars2[4][i]);
+        auto vzz = LOAD_PS(&stars2[5][i]);
+
         for (int j=0; j<NSTAR; j++) {
-            float dx = other[0][j] - stars2[0][i];
-            float dy = other[1][j] - stars2[1][i];
-            float dz = other[2][j] - stars2[2][i];
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            if (true)
-            {
-                d2 *= std::sqrt(d2);     // 292 ms
-                vx += dx * other[6][j] * (G * dt) / d2;
-                vy += dy * other[6][j] * (G * dt) / d2;
-                vz += dz * other[6][j] * (G * dt) / d2;
-            }
-            else {
-                // d2 = 1./(std::sqrt(d2)*d2);     // 292 ms
-                d2 = Q_rsqrt(d2)/d2;            // 273ms
-                vx += dx * other[6][j] * (G * dt) * d2;
-                vy += dy * other[6][j] * (G * dt) * d2;
-                vz += dz * other[6][j] * (G * dt) * d2;
-            }
-            
+            auto other_px = SET1_PS(other[0][j]);
+            auto other_py = SET1_PS(other[1][j]);
+            auto other_pz = SET1_PS(other[2][j]);
+
+            auto dxx = SUB_PS(other_px, star_px);
+            auto dyy = SUB_PS(other_py, star_py);
+            auto dzz = SUB_PS(other_pz, star_pz);
+
+            auto dd2 = MUL_PS(dxx, dxx) + MUL_PS(dyy, dyy) + 
+                       MUL_PS(dzz, dzz) + SET1_PS(eps*eps);
+
+            dd2 = DIV_PS(RSQRT_PS(dd2), dd2);
+            auto inter = SET1_PS(other[6][j]*(G*dt));
+            inter = MUL_PS(inter, dd2);
+
+            vxx = ADD_PS(vxx, MUL_PS(dxx, inter));
+            vyy = ADD_PS(vyy, MUL_PS(dyy, inter));
+            vzz = ADD_PS(vzz, MUL_PS(dzz, inter));
         }
-        stars2[3][i] += vx;
-        stars2[4][i] += vy;
-        stars2[5][i] += vz;
-        stars2[0][i] += stars2[3][i] * dt;
-        stars2[1][i] += stars2[4][i] * dt;
-        stars2[2][i] += stars2[5][i] * dt;
+        STORE_PS(&stars2[3][i], vxx);
+        STORE_PS(&stars2[4][i], vyy);
+        STORE_PS(&stars2[5][i], vzz);
+
+        static auto dtt = SET1_PS(dt);
+        vxx = MUL_PS(vxx, dtt);
+        vyy = MUL_PS(vyy, dtt);
+        vzz = MUL_PS(vzz, dtt);
+
+        star_px =  ADD_PS(star_px, vxx);
+        star_py =  ADD_PS(star_py, vyy);
+        star_pz =  ADD_PS(star_pz, vzz);
+
+        STORE_PS(&stars2[0][i], star_px);
+        STORE_PS(&stars2[1][i], star_py);
+        STORE_PS(&stars2[2][i], star_pz);
     }
 }
 
@@ -190,6 +233,6 @@ int main() {
             step2();
     });
     printf("Final energy: %f\n", calc2());
-    printf("Time elapsed: %ld ms\n", dt2);
+    printf("Time elapsed: %ld ms\n", dt2);    
     return 0;
 }

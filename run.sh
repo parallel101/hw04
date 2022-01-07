@@ -6,3 +6,5 @@ echo "------baseline------"
 build/main
 echo "------   my   ------"
 build/work
+echo "------   my2  ------"
+build/work2
