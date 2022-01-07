@@ -25,6 +25,7 @@ struct Star {
 Star stars;
 
 void init() {
+#pragma omp simd
     for (size_t i = 0; i < 48; i++) {
         //stars.push_back({
         //    frand(), frand(), frand(),
@@ -51,6 +52,7 @@ void step() {
     const float dtMulG = dt * G;
 	for (size_t i = 0; i < star_size; ++i)
 	{
+        float vxTmp = 0, vyTmp = 0, vzTmp = 0;
         for (size_t j = 0; j < star_size; ++j)
         {
 			float dx = stars.px[j] - stars.px[i];
@@ -59,12 +61,16 @@ void step() {
 			float d2 = dx * dx + dy * dy + dz * dz + epsMulEps;
 			d2 *= std::sqrt(d2);
 
-			stars.vx[i] += dx * stars.mass[j] * dtMulG / d2;
-			stars.vy[i] += dy * stars.mass[j] * dtMulG / d2;
-			stars.vz[i] += dz * stars.mass[j] * dtMulG / d2;
+            vxTmp += dx * stars.mass[j] * dtMulG / d2;
+            vyTmp += dy * stars.mass[j] * dtMulG / d2;
+            vzTmp += dz * stars.mass[j] * dtMulG / d2;
         }
+		stars.vx[i] += vxTmp;
+		stars.vy[i] += vyTmp;
+		stars.vz[i] += vzTmp;
 	}
 
+#pragma omp simd
     for (size_t i = 0; i < star_size; ++i)
     {
 		//star.px += star.vx * dt;
@@ -103,14 +109,14 @@ float calc() {
     for (size_t i = 0; i < star_size; ++i)
     {
         float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] * stars.vz[i];
-        energy += stars.mass[i] * v2 / 2.0f;
+        energy += stars.mass[i] * v2 * 0.5f;
         for (size_t j = 0; j < star_size; ++j)
         {
             float dx = stars.px[j] - stars.px[i];
             float dy = stars.py[j] - stars.py[i];
             float dz = stars.pz[j] - stars.pz[i];
             float d2 = dx * dx + dy * dy + dz * dz + epsMulEps;
-            energy -= stars.mass[j] * stars.mass[i] * G / std::sqrt(d2) / 2;
+            energy -= stars.mass[j] * stars.mass[i] * G / std::sqrt(d2) * 0.5f;
         }
     }
 
