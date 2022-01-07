@@ -4,63 +4,94 @@
 #include <chrono>
 #include <cmath>
 
+constexpr float sDoubleInvRandMax = 2.0f / RAND_MAX;
+
 float frand() {
-    return (float)rand() / RAND_MAX * 2 - 1;
+    return (float)rand() * sDoubleInvRandMax - 1;
 }
 
+template <size_t N>
 struct Star {
-    float px, py, pz;
-    float vx, vy, vz;
-    float mass;
+    float px[N];
+    float py[N];
+    float pz[N];
+    float vx[N];
+    float vy[N];
+    float vz[N];
+    float mass[N];
 };
 
-std::vector<Star> stars;
+constexpr size_t sStarCount = 48;
+Star<sStarCount> stars;
 
 void init() {
-    for (int i = 0; i < 48; i++) {
-        stars.push_back({
-            frand(), frand(), frand(),
-            frand(), frand(), frand(),
-            frand() + 1,
-        });
+#pragma GCC unroll 16
+    for (size_t i = 0; i < sStarCount; ++i)
+    {
+        stars.px[i] = frand(); 
+        stars.py[i] = frand(); 
+        stars.pz[i] = frand(); 
+        stars.vx[i] = frand(); 
+        stars.vy[i] = frand(); 
+        stars.vz[i] = frand(); 
+        stars.mass[i] = frand() + 1;
     }
 }
 
-float G = 0.001;
-float eps = 0.001;
-float dt = 0.01;
+constexpr float G = 0.001;
+constexpr float eps = 0.001;
+constexpr float eps2 = eps * eps;
+constexpr float dt = 0.01;
 
 void step() {
-    for (auto &star: stars) {
-        for (auto &other: stars) {
-            float dx = other.px - star.px;
-            float dy = other.py - star.py;
-            float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            d2 *= sqrt(d2);
-            star.vx += dx * other.mass * G * dt / d2;
-            star.vy += dy * other.mass * G * dt / d2;
-            star.vz += dz * other.mass * G * dt / d2;
+#pragma omp simd
+    for(size_t i = 0; i < sStarCount; ++i)
+    {
+        float sumx = 0.0f;
+        float sumy = 0.0f;
+        float sumz = 0.0f;
+
+        for(size_t j = 0; j < sStarCount; ++j)
+        {
+            float dx = stars.px[j] - stars.px[i];
+            float dy = stars.py[j] - stars.py[i];
+            float dz = stars.pz[j] - stars.pz[i];
+            float G_dt_inv_d2_mass = (G * dt) * std::pow(dx * dx + dy * dy + dz * dz + eps2, -1.5f) * stars.mass[j];
+
+            sumx += G_dt_inv_d2_mass * dx;
+            sumy += G_dt_inv_d2_mass * dy;
+            sumz += G_dt_inv_d2_mass * dz;
         }
+
+        stars.vx[i] += sumx;
+        stars.vy[i] += sumy;
+        stars.vz[i] += sumz;
     }
-    for (auto &star: stars) {
-        star.px += star.vx * dt;
-        star.py += star.vy * dt;
-        star.pz += star.vz * dt;
+
+    for(size_t i = 0; i < sStarCount; ++i)
+    {
+        stars.px[i] += stars.vx[i] * dt;
+        stars.py[i] += stars.vy[i] * dt;
+        stars.pz[i] += stars.vz[i] * dt;
     }
 }
 
 float calc() {
     float energy = 0;
-    for (auto &star: stars) {
-        float v2 = star.vx * star.vx + star.vy * star.vy + star.vz * star.vz;
-        energy += star.mass * v2 / 2;
-        for (auto &other: stars) {
-            float dx = other.px - star.px;
-            float dy = other.py - star.py;
-            float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            energy -= other.mass * star.mass * G / sqrt(d2) / 2;
+    for(size_t i = 0; i < sStarCount; ++i)
+    {
+        float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] * stars.vz[i];
+        energy += stars.mass[i] * v2 * 0.5f;
+
+        float G_mass_i_half = (G * 0.5f) * stars.mass[i];
+
+        for(size_t j = 0; j < sStarCount; ++j)
+        {
+            float dx = stars.px[j] - stars.px[i];
+            float dy = stars.py[j] - stars.py[i];
+            float dz = stars.pz[j] - stars.pz[i];
+            float d2 = dx * dx + dy * dy + dz * dz + eps2;
+            energy -= stars.mass[j] * G_mass_i_half / std::sqrt(d2);
         }
     }
     return energy;
