@@ -7,3 +7,4 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_executable(main main.cpp)
+target_compile_options(main PUBLIC -ffast-math -march=native)
