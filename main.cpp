@@ -26,11 +26,11 @@ void init() {
     }
 }
 
-float G = 0.001;
-float eps = 0.001;
-float dt = 0.01;
-float eps2 = eps * eps;
-float Gdt = G * dt;
+constexpr float G = 0.001;
+constexpr float eps = 0.001;
+constexpr float dt = 0.01;
+constexpr float eps2 = eps * eps;
+constexpr float Gdt = G * dt;
 
 void step() {
     for (auto &star: stars) {
