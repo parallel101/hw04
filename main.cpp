@@ -39,7 +39,7 @@ void step() {
             float dy = other.py - star.py;
             float dz = other.pz - star.pz;
             float d2 = dx * dx + dy * dy + dz * dz + eps2;
-            d2 *= sqrt(d2);
+            d2 *= std::sqrt(d2);
             star.vx += dx * other.mass * Gdt / d2;
             star.vy += dy * other.mass * Gdt / d2;
             star.vz += dz * other.mass * Gdt / d2;
@@ -62,7 +62,7 @@ float calc() {
             float dy = other.py - star.py;
             float dz = other.pz - star.pz;
             float d2 = dx * dx + dy * dy + dz * dz + eps2;
-            energy -= other.mass * star.mass * G / sqrt(d2) / 2;
+            energy -= other.mass * star.mass * G / std::sqrt(d2) / 2;
         }
     }
     return energy;
