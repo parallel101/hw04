@@ -29,6 +29,8 @@ void init() {
 float G = 0.001;
 float eps = 0.001;
 float dt = 0.01;
+float eps2 = eps * eps;
+float Gdt = G * dt;
 
 void step() {
     for (auto &star: stars) {
@@ -36,11 +38,11 @@ void step() {
             float dx = other.px - star.px;
             float dy = other.py - star.py;
             float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
+            float d2 = dx * dx + dy * dy + dz * dz + eps2;
             d2 *= sqrt(d2);
-            star.vx += dx * other.mass * G * dt / d2;
-            star.vy += dy * other.mass * G * dt / d2;
-            star.vz += dz * other.mass * G * dt / d2;
+            star.vx += dx * other.mass * Gdt / d2;
+            star.vy += dy * other.mass * Gdt / d2;
+            star.vz += dz * other.mass * Gdt / d2;
         }
     }
     for (auto &star: stars) {
@@ -59,7 +61,7 @@ float calc() {
             float dx = other.px - star.px;
             float dy = other.py - star.py;
             float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
+            float d2 = dx * dx + dy * dy + dz * dz + eps2;
             energy -= other.mass * star.mass * G / sqrt(d2) / 2;
         }
     }
