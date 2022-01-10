@@ -25,11 +25,6 @@ void init() {
         stars.vy[i] = frand();
         stars.vz[i] = frand();
         stars.mass[i] = frand()+1;
-        // stars[i] = {
-        //     frand(), frand(), frand(),
-        //     frand(), frand(), frand(),
-        //     frand() + 1,
-        // };
     }
 }
 
@@ -39,19 +34,6 @@ float dt = 0.01;
 float eps2 = eps * eps;
 void step() {
     float G_dt = G*dt;
-    // for (auto &star: stars) {
-    //     for (auto &other: stars) {
-    //         float dx = other.px - star.px;
-    //         float dy = other.py - star.py;
-    //         float dz = other.pz - star.pz;
-    //         float d2 = dx * dx + dy * dy + dz * dz + eps2;
-    //         d2 *= std::sqrt(d2);
-    //         float inv_d2 = 1.0f/d2;
-    //         star.vx += dx * other.mass * G_dt * inv_d2;
-    //         star.vy += dy * other.mass * G_dt * inv_d2;
-    //         star.vz += dz * other.mass * G_dt * inv_d2;
-    //     }
-    // }
     for (size_t i = 0;i<num;i++) {
         for (size_t j =0;j<num;j++) {
             float dx = stars.px[j] - stars.px[i];
@@ -65,11 +47,6 @@ void step() {
             stars.vz[i] += dz * stars.mass[j] * G_dt * inv_d2;
         }
     }
-    // for (auto &star: stars) {
-    //     star.px += star.vx * dt;
-    //     star.py += star.vy * dt;
-    //     star.pz += star.vz * dt;
-    // }
     for (size_t i = 0;i<num;i++) {
         stars.px[i] += stars.vx[i] * dt;
         stars.py[i] += stars.vy[i] * dt;
@@ -79,17 +56,6 @@ void step() {
 
 float calc() {
     float energy = 0;
-    // for (auto &star: stars) {
-    //     float v2 = star.vx * star.vx + star.vy * star.vy + star.vz * star.vz;
-    //     energy += star.mass * v2 * 0.5;
-    //     for (auto &other: stars) {
-    //         float dx = other.px - star.px;
-    //         float dy = other.py - star.py;
-    //         float dz = other.pz - star.pz;
-    //         float d2 = dx * dx + dy * dy + dz * dz + eps;
-    //         energy -= other.mass * star.mass * G / std::sqrt(d2) * 0.5;
-    //     }
-    // }
     for (size_t i = 0;i<num;i++) {
         float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] * stars.vz[i];
         energy += stars.mass[i] * v2 * 0.5;
