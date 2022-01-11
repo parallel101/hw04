@@ -12,6 +12,7 @@ struct Star {
     float px, py, pz;
     float vx, vy, vz;
     float mass;
+    // char padding[12];
 };
 
 std::vector<Star> stars;
@@ -26,22 +27,29 @@ void init() {
     }
 }
 
-float G = 0.001;
-float eps = 0.001;
-float dt = 0.01;
+float G = 0.001f;
+float eps = 0.001f;
+float dt = 0.01f;
 
 void step() {
+    float eps2 = eps * eps;
     for (auto &star: stars) {
+        float tmp_vx = 0, tmp_vy = 0, tmp_vz = 0;
+        float factor = G * dt;
         for (auto &other: stars) {
             float dx = other.px - star.px;
             float dy = other.py - star.py;
             float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            d2 *= sqrt(d2);
-            star.vx += dx * other.mass * G * dt / d2;
-            star.vy += dy * other.mass * G * dt / d2;
-            star.vz += dz * other.mass * G * dt / d2;
+            float d2 = dx * dx + dy * dy + dz * dz + eps2;
+            d2 *= std::sqrt(d2);
+            float div = 1.0f / d2;
+            tmp_vx += dx * other.mass * factor * div;
+            tmp_vy += dy * other.mass * factor * div;
+            tmp_vz += dz * other.mass * factor * div;
         }
+        star.vx += tmp_vx;
+        star.vy += tmp_vy;
+        star.vz += tmp_vz;
     }
     for (auto &star: stars) {
         star.px += star.vx * dt;
@@ -52,6 +60,7 @@ void step() {
 
 float calc() {
     float energy = 0;
+    float eps2 = eps * eps;
     for (auto &star: stars) {
         float v2 = star.vx * star.vx + star.vy * star.vy + star.vz * star.vz;
         energy += star.mass * v2 / 2;
@@ -59,8 +68,8 @@ float calc() {
             float dx = other.px - star.px;
             float dy = other.py - star.py;
             float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            energy -= other.mass * star.mass * G / sqrt(d2) / 2;
+            float d2 = dx * dx + dy * dy + dz * dz + eps2;
+            energy -= other.mass * star.mass * G / std::sqrt(d2) / 2;
         }
     }
     return energy;
