@@ -4,12 +4,18 @@
 #include <chrono>
 #include <cmath>
 
+//-march=native 让编译器自动判断当前硬件支持的指令
+//强迫编译器在编译期求值
+//用 constexpr 函数迫使编译器进行常量折叠！
 constexpr float speedup = 1.0 / RAND_MAX;
 
 float frand() {
     return (float)rand() / speedup * 2 - 1;
 }
 constexpr int length = 48;
+
+//存储在栈上无法动态扩充大小，这就是为什么 vector 
+//这种数据结构要存在堆上，而固定长度的 array 可以存在栈上
 
 struct Star {
     float px[length]; 
@@ -21,6 +27,11 @@ struct Star {
     float mass[length];
 };
 
+//SOA：分离存储多个属性
+//不符合面向对象编程 (OOP) 的习惯，但常常有利于性能。又称之为面向数据编程
+
+//AOS：紧凑存储多个属性
+//符合一般面向对象编程 (OOP) 的习惯，但常常不利于性能
 Star stars;
 
 void init() {
@@ -34,7 +45,7 @@ void init() {
         stars.mass[i] = frand() + 1;
     }
 }
-
+//循环中的不变量：挪到外面来
 float G = 0.001;
 float eps = 0.001;
 float dt = 0.01;
@@ -87,6 +98,9 @@ void step() {
                 stars.vz[i] += dzs[j] * stars.mass[j] * (gdt * ivf_d2s[j]);
             }
         }
+//pragma omp simd 
+//C/C++ 的缺点：指针的自由度过高，允许多个 immutable reference 指向同一个对象
+//而 Rust 从语法层面禁止，从而让编译器放心大胆优化。
         #pragma opm simd
         for(size_t i=0; i<len; i++)
         {
@@ -103,7 +117,7 @@ void step() {
             stars.pz[i] += stars.vz[i] * dt;
         }
 }
-
+//结论：不管是编译器还是 CPU，都喜欢顺序的连续访问
 float calc() {
     float energy = 0;
     size_t len = length;
@@ -111,6 +125,7 @@ float calc() {
         float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i]* stars.vy[i]+ stars.vz[i]* stars.vz[i];
         energy += stars.mass[i] * v2 / 2;
         #pragma GCC unroll 32
+//小的循环体进行 unroll 可能是划算的，但最好不要 unroll 大的循环体，否则会造成指令缓存的压力反而变慢！
         for (size_t j=0; j < len; j++) {
             float dx = stars.px[j] - stars.px[i];
             float dy = stars.py[j] - stars.py[i];
@@ -118,11 +133,13 @@ float calc() {
             float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
             float ivf_d2 = 1.0 / (std::sqrt(d2) * 2);
             energy -= stars.mass[j] * stars.mass[j] * (G * ivf_d2);
+            //数学优化：除法变乘法
         }
     }
     return energy;
 }
-
+//-ffast-math 选项让 GCC 更大胆地尝试浮点运算的优化，有时能带来 2 倍左右的提升。作为代价，他对 NaN 和无穷大的处理，可能会和 IEEE 标准（腐朽的）规定的不一致。
+//如果你能保证，程序中永远不会出现 NaN 和无穷大，那么可以放心打开 -ffast-math。
 template <class Func>
 long benchmark(Func const &func) {
     auto t0 = std::chrono::steady_clock::now();
