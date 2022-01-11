@@ -12,7 +12,7 @@ struct Star {
     float px, py, pz;
     float vx, vy, vz;
     float mass;
-    // char padding[12];
+    char padding[12];
 };
 
 std::vector<Star> stars;
