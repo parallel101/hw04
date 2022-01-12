@@ -9,5 +9,5 @@ endif()
 add_executable(main main.cpp)
 
 find_package(OpenMP REQUIRED)
-target_link_libraries(testbench PUBLIC OpenMP::OpenMP_CXX)
-target_compile_options(testbench PUBLIC -ffast-math -march=native)
+target_link_libraries(main PUBLIC OpenMP::OpenMP_CXX)
+target_compile_options(main PUBLIC -ffast-math -march=native)

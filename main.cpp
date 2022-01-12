@@ -18,6 +18,7 @@ struct Star {
 std::vector<Star> stars;
 
 void init() {
+    #pragma unroll
     for (int i = 0; i < 48; i++) {
         stars.push_back({
             frand(), frand(), frand(),
@@ -36,6 +37,7 @@ void step() {
     for (auto &star: stars) {
         float tmp_vx = 0, tmp_vy = 0, tmp_vz = 0;
         float factor = G * dt;
+        #pragma omp simd
         for (auto &other: stars) {
             float dx = other.px - star.px;
             float dy = other.py - star.py;
@@ -51,6 +53,7 @@ void step() {
         star.vy += tmp_vy;
         star.vz += tmp_vz;
     }
+    #pragma unroll
     for (auto &star: stars) {
         star.px += star.vx * dt;
         star.py += star.vy * dt;
@@ -64,6 +67,7 @@ float calc() {
     for (auto &star: stars) {
         float v2 = star.vx * star.vx + star.vy * star.vy + star.vz * star.vz;
         energy += star.mass * v2 / 2;
+        #pragma omp simd
         for (auto &other: stars) {
             float dx = other.px - star.px;
             float dy = other.py - star.py;
@@ -88,6 +92,7 @@ int main() {
     init();
     printf("Initial energy: %f\n", calc());
     auto dt = benchmark([&] {
+    #pragma unroll
         for (int i = 0; i < 100000; i++)
             step();
     });
