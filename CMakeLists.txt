@@ -7,3 +7,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_executable(main main.cpp)
+
+find_package(OpenMP REQUIRED)
+target_link_libraries(main PUBLIC OpenMP::OpenMP_CXX)
+target_compile_options(main PUBLIC -ffast-math -march=native)
