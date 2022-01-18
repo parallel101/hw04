@@ -23,7 +23,6 @@ float frand() {
 }
 
 void init() {
-    printf("SOA mode\n");
     for (int i = 0; i < g_len; i++) {
         stars.px[i] = frand();
         stars.py[i] = frand();
