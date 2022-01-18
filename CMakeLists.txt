@@ -6,4 +6,7 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-add_executable(main main.cpp)
+add_executable(main opt2_soa_main.cpp)
+
+target_compile_options(main PUBLIC -ffast-math)
+target_compile_options(main PUBLIC -march=native)
