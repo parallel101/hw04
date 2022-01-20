@@ -5,7 +5,7 @@
 #include <cmath>
 
 
-//#pragma omp simd //3th: SIMD：没有明显的提升。。。可能是没有打开gcc -fopenmp -O3. 开了也没用。。
+//#pragma omp simd //3rd: SIMD：没有明显的提升。。。可能是没有打开gcc -fopenmp -O3. 开了也没用。。
 
 constexpr int N = 48;
 
