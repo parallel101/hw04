@@ -8,5 +8,3 @@ endif()
 
 add_executable(main main.cpp)
 target_compile_options(main PUBLIC -ffast-math -march=native)
-find_package(OpenMP REQUIRED)
-target_link_libraries(main PUBLIC OpenMP::OpenMP_CXX)

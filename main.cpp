@@ -4,8 +4,10 @@
 #include <chrono>
 #include <cmath>
 
+// 减少初始化时的乘法
+constexpr float RAND_MAX2 = 1.f / RAND_MAX * 2;
 float frand() {
-    return (float)rand() / RAND_MAX * 2 - 1;
+    return (float)rand() * RAND_MAX2 - 1;
 }
 
 constexpr size_t length = 48;
@@ -18,7 +20,7 @@ struct Star {
 Star stars;
 
 void init() {
-    #pragma omp simd
+    #pragma GCC unroll 8
     for (size_t i = 0; i < length; i++) {
         stars.px[i] = frand();
         stars.py[i] = frand();
@@ -50,22 +52,27 @@ void step() {
         float tmp_vyi = 0;
         float tmp_vzi = 0;
         
+        #pragma GCC unroll 8
         for (size_t j = 0; j < length; j++) {
             float dx = stars.px[j] - spxi;
             float dy = stars.py[j] - spyi;
             float dz = stars.pz[j] - spzi;
             float d2 = dx * dx + dy * dy + dz * dz + eps2;
             d2 *= std::sqrt(d2);
-            tmp_vxi += dx * stars.mass[j] * Gdt / d2;
-            tmp_vyi += dy * stars.mass[j] * Gdt / d2;
-            tmp_vzi += dz * stars.mass[j] * Gdt / d2;
+            // Gdt = G * dt 放到for循环外部
+            d2 = 1.f / d2;
+            // 乘法变加法
+            tmp_vxi += dx * stars.mass[j] * d2;
+            tmp_vyi += dy * stars.mass[j] * d2;
+            tmp_vzi += dz * stars.mass[j] * d2;
         }
         // 累加结束后再写入到全局变量中
-        stars.vx[i] += tmp_vxi;
-        stars.vy[i] += tmp_vyi;
-        stars.vz[i] += tmp_vzi;
+        stars.vx[i] += tmp_vxi * Gdt;
+        stars.vy[i] += tmp_vyi * Gdt;
+        stars.vz[i] += tmp_vzi * Gdt;
     }
 
+    #pragma GCC unroll 8
     for (size_t i = 0; i < length; i++) {
         stars.px[i] += stars.vx[i] * dt;
         stars.py[i] += stars.vy[i] * dt;
@@ -76,26 +83,29 @@ void step() {
 float calc() {
     float energy = 0;
     for (size_t i = 0; i < length; i++) {
-        float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] + stars.vz[i];
-        energy += stars.mass[i] * v2 / 2;
-
         // 减少不必要的内存访问
         float pxi = stars.px[i];
         float pyi = stars.py[i];
         float pzi = stars.pz[i];
         float massi = stars.mass[i];
+        
+        float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] * stars.vz[i];
+        energy += massi * v2 / 2;
 
         // 先累加到初始化为0的局部变量
         float tmp = 0;
+        #pragma GCC unroll 8
         for (size_t j = 0; j < length; j++) {
             float dx = stars.px[j] - pxi;
             float dy = stars.py[j] - pyi;
             float dz = stars.pz[j] - pzi;
             float d2 = dx * dx + dy * dy + dz * dz + eps2;
-            tmp += stars.mass[j] * massi * G2 / std::sqrt(d2);
+            // 将massi = stars.mass[i]和G2 = G / 2放到for循环外部
+            // 减少乘法次数
+            tmp += stars.mass[j] / std::sqrt(d2);
         }
         // 累加结束后写入
-        energy -= tmp;
+        energy -= tmp * massi * G2;
     }
     return energy;
 }
