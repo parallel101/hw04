@@ -38,16 +38,20 @@ void init() {
 
 void step() {
     for (size_t i = 0; i < star_size; ++i) {
+        float sumx = 0.0f, sumy = 0.0f, sumz = 0.0f;
         for (size_t j = 0; j < star_size; ++j) {
             float dx = star.px[j] - star.px[i];
             float dy = star.py[j] - star.py[i];
             float dz = star.pz[j] - star.pz[i];
             float d2 = dx * dx + dy * dy + dz * dz + eps2;
             d2 *= std::sqrt(d2);
-            star.vx[i] += dx * star.mass[j] * Gdt / d2;
-            star.vy[i] += dy * star.mass[j] * Gdt / d2;
-            star.vz[i] += dz * star.mass[j] * Gdt / d2;
+            sumx += dx * star.mass[j] * Gdt / d2;
+            sumy += dy * star.mass[j] * Gdt / d2;
+            sumz += dz * star.mass[j] * Gdt / d2;
         }
+        star.vx[i] += sumx;
+        star.vy[i] += sumy;
+        star.vz[i] += sumz;
     }
     for (size_t i = 0; i < star_size; ++i) {
         star.px[i] += star.vx[i] * dt;
