@@ -7,3 +7,9 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_executable(main main.cpp)
+
+if (MSVC) 
+    target_compile_options(main PUBLIC /fp:fast /arch:AVX2)
+else()
+    target_compile_options(main PUBLIC -ffast-math -march=native)
+endif()
