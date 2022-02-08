@@ -38,6 +38,7 @@ float Gpdt = G * dt;
 
 void step() {
 #pragma GCC ivdep
+// #pragma omp simd
     for (size_t i=0; i<pnum; i++) {
         for (size_t j=0; j<pnum; j++) {
             float dx = stars.px[j]-stars.px[i];
@@ -61,6 +62,7 @@ void step() {
 float calc() {
     float energy = 0;
 #pragma GCC ivdep
+// #pragma omp simd
     for (size_t i = 0; i<pnum; i++) {
         float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] * stars.vz[i];
         energy += stars.mass[i] * v2 / 2;
