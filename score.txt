@@ -1,13 +1,75 @@
-目前 (01/12) 同学们作业在老师电脑上的跑分 (毫秒):
+原始版本
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 6285 ms
 
-原版: 1107
-#1: 113
-#2: 116
-#3: 65
-#4: 125
-#5: 243
-#6: 114
-#11: 114
-#12: 161
-#13: 83
-#14: 121
+-o1 优化
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 2659 ms
+
+-o2
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 2558 ms
+
+-o3
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 2560 ms
+
+索引int变成size_t
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 2560 ms
+
+inline frand函数
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 2593 ms
+
+将/2改成*0.5
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 2585 ms
+
+
+将公共除法变成乘法
+Initial energy: -13.414000
+Final energy: -13.356842
+Time elapsed: 2030 ms
+
+
+-ffast-math 选项定义了预处理器宏 __FAST_MATH__, 指示编译不必遵循 IEEE 和 ISO 的浮点运算标准
+-march=native，GCC会自动检测你的CPU支持的指令集。
+ Initial energy: -13.414000
+ Final energy: -13.356841
+ Time elapsed: 1606 ms
+
+
+SoA 阵列结构 struct of array
+Initial energy: -13.414000
+Final energy: -13.356841
+Time elapsed: 1630 ms
+
+sqrt前+std:: 使用模板完成传入参数匹配
+Initial energy: -13.414000
+Final energy: -13.356841
+Time elapsed: 1220 ms
+
+#pragma GCC unroll 4
+Initial energy: -13.414000
+Final energy: -13.356841
+Time elapsed: 1212 ms
+
+G * dt / d2 提取到循环外面计算
+Initial energy: -13.414000
+Final energy: -13.356841
+Time elapsed: 1096 ms
+
+
+final result:
+6285 ms / 1096 ms = 5.734
+
+
+
