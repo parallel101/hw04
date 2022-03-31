@@ -3,7 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <cmath>
-
+#include <array>
 float frand() {
     return (float)rand() / RAND_MAX * 2 - 1;
 }
@@ -12,13 +12,16 @@ struct Star {
     float px, py, pz;
     float vx, vy, vz;
     float mass;
+    
 };
 
-std::vector<Star> stars;
+std::array<Star,48> stars;
 
 void init() {
+  //  #pragma omp simd
+    #pragma GCC ivdep
     for (int i = 0; i < 48; i++) {
-        stars.push_back({
+        stars[i] = (Star{
             frand(), frand(), frand(),
             frand(), frand(), frand(),
             frand() + 1,
@@ -31,43 +34,56 @@ float eps = 0.001;
 float dt = 0.01;
 
 void step() {
-    for (auto &star: stars) {
-        for (auto &other: stars) {
-            float dx = other.px - star.px;
-            float dy = other.py - star.py;
-            float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
+    float G = 0.001;
+float eps = 0.001;
+float dt = 0.01;
+float epss = eps*eps;
+float gpdt = G*dt;
+//#pragma omp simd
+#pragma GCC ivdep
+    for (int i=0;i<48;i++) {
+        for (int j=0;j<48;j++) {
+            float dx = stars[j].px - stars[i].px;
+            float dy = stars[j].py - stars[i].py;
+            float dz = stars[j].pz - stars[i].pz;
+            float d2 = dx * dx + dy * dy + dz * dz + epss;
             d2 *= sqrt(d2);
-            star.vx += dx * other.mass * G * dt / d2;
-            star.vy += dy * other.mass * G * dt / d2;
-            star.vz += dz * other.mass * G * dt / d2;
+            stars[i].vx += dx * stars[j].mass * gpdt / d2;
+            stars[i].vy += dy * stars[j].mass * gpdt / d2;
+            stars[i].vz += dz * stars[j].mass * gpdt / d2;
         }
     }
-    for (auto &star: stars) {
-        star.px += star.vx * dt;
-        star.py += star.vy * dt;
-        star.pz += star.vz * dt;
+    for (int i=0;i<48;i++) {
+        stars[i].px += stars[i].vx * dt;
+        stars[i].py += stars[i].vy * dt;
+        stars[i].pz += stars[i].vz * dt;
     }
 }
 
 float calc() {
+    float G = 0.001;
+float eps = 0.001;
+float dt = 0.01;
+float epss = eps*eps;
     float energy = 0;
-    for (auto &star: stars) {
-        float v2 = star.vx * star.vx + star.vy * star.vy + star.vz * star.vz;
-        energy += star.mass * v2 / 2;
-        for (auto &other: stars) {
-            float dx = other.px - star.px;
-            float dy = other.py - star.py;
-            float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            energy -= other.mass * star.mass * G / sqrt(d2) / 2;
+    //#pragma omp simd
+    #pragma GCC ivdep
+    for (int i=0;i<48;i++) {
+        float v2 = stars[i].vx * stars[i].vx + stars[i].vy * stars[i].vy + stars[i].vz * stars[i].vz;
+        energy += stars[i].mass * v2 / 2;
+        for (int j=0;j<48;j++) {
+            float dx = stars[j].px - stars[i].px;
+            float dy = stars[j].py - stars[i].py;
+            float dz = stars[j].pz - stars[i].pz;
+            float d2 = dx * dx + dy * dy + dz * dz + epss;
+            energy -= stars[j].mass * stars[i].mass * G / sqrt(d2) / 2;
         }
     }
     return energy;
 }
 
 template <class Func>
-long benchmark(Func const &func) {
+constexpr long benchmark(Func const &func) {
     auto t0 = std::chrono::steady_clock::now();
     func();
     auto t1 = std::chrono::steady_clock::now();
@@ -79,6 +95,7 @@ int main() {
     init();
     printf("Initial energy: %f\n", calc());
     auto dt = benchmark([&] {
+	#pragma omp simd
         for (int i = 0; i < 100000; i++)
             step();
     });
