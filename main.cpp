@@ -1,6 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
+#include <array>
 #include <chrono>
 #include <cmath>
 
@@ -8,59 +8,96 @@ float frand() {
     return (float)rand() / RAND_MAX * 2 - 1;
 }
 
-struct Star {
-    float px, py, pz;
-    float vx, vy, vz;
-    float mass;
+template <std::size_t N>
+struct Stars
+{
+    std::array<float, N> px, py, pz;
+    std::array<float, N> vx, vy, vz;
+    std::array<float, N> mass;
+
+    constexpr std::size_t size()
+    {
+        return N;
+    }
 };
 
-std::vector<Star> stars;
+Stars<48> stars;
 
 void init() {
-    for (int i = 0; i < 48; i++) {
-        stars.push_back({
-            frand(), frand(), frand(),
-            frand(), frand(), frand(),
-            frand() + 1,
-        });
+    const auto size{ stars.size() };
+    for (std::size_t i{ }; i < size; ++i)
+    {
+        stars.px[i] = frand();
+        stars.py[i] = frand();
+        stars.pz[i] = frand();
+        stars.vx[i] = frand();
+        stars.vy[i] = frand();
+        stars.vz[i] = frand();
+        stars.mass[i] = frand() + 1;
     }
 }
 
-float G = 0.001;
-float eps = 0.001;
-float dt = 0.01;
+static constexpr float G{ 0.001f };
+static constexpr float eps{ 0.001f };
+static constexpr float eps2{ eps * eps };
+static constexpr float dt{ 0.01f };
+static constexpr float G_dt{ G * dt };
 
 void step() {
-    for (auto &star: stars) {
-        for (auto &other: stars) {
-            float dx = other.px - star.px;
-            float dy = other.py - star.py;
-            float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            d2 *= sqrt(d2);
-            star.vx += dx * other.mass * G * dt / d2;
-            star.vy += dy * other.mass * G * dt / d2;
-            star.vz += dz * other.mass * G * dt / d2;
+    const auto size{ stars.size() };
+    for (std::size_t i{ }; i < size; ++i)
+    {
+        auto px{ stars.px[i] };
+        auto py{ stars.py[i] };
+        auto pz{ stars.pz[i] };
+        float vx{ };
+        float vy{ };
+        float vz{ };
+        for (std::size_t j{ }; j < size; ++j)
+        {
+            auto dx{ stars.px[j] - px };
+            auto dy{ stars.py[j] - py };
+            auto dz{ stars.pz[j] - pz };
+            auto d2{ dx * dx + dy * dy + dz * dz + eps2 };
+            d2 *= std::sqrt(d2);
+            auto tmp0{ stars.mass[j] * G_dt / d2 };
+            vx += dx * tmp0;
+            vy += dy * tmp0;
+            vz += dz * tmp0;
         }
+        stars.vx[i] += vx;
+        stars.vy[i] += vy;
+        stars.vz[i] += vz;
     }
-    for (auto &star: stars) {
-        star.px += star.vx * dt;
-        star.py += star.vy * dt;
-        star.pz += star.vz * dt;
+    for (std::size_t i{ }; i < size; ++i)
+    {
+        stars.px[i] += stars.vx[i] * dt;
+        stars.py[i] += stars.vy[i] * dt;
+        stars.pz[i] += stars.vz[i] * dt;
     }
 }
 
 float calc() {
     float energy = 0;
-    for (auto &star: stars) {
-        float v2 = star.vx * star.vx + star.vy * star.vy + star.vz * star.vz;
-        energy += star.mass * v2 / 2;
-        for (auto &other: stars) {
-            float dx = other.px - star.px;
-            float dy = other.py - star.py;
-            float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            energy -= other.mass * star.mass * G / sqrt(d2) / 2;
+    const auto size{ stars.size() };
+    for (std::size_t i{ }; i < size; ++i)
+    {
+        auto px{ stars.px[i] };
+        auto py{ stars.py[i] };
+        auto pz{ stars.pz[i] };
+        auto vx{ stars.vx[i] };
+        auto vy{ stars.vy[i] };
+        auto vz{ stars.vz[i] };
+        auto mass{ stars.mass[i] };
+        auto v2 = vx * vx + vy * vy + vz * vz;
+        energy += mass * v2 * 0.5f;
+        for (std::size_t j{ }; j < size; ++j)
+        {
+            auto dx{ stars.px[j] - px };
+            auto dy{ stars.py[j] - py };
+            auto dz{ stars.pz[j] - pz };
+            auto d2{ dx * dx + dy * dy + dz * dz + eps2 };
+            energy -= stars.mass[j] * mass * G / std::sqrt(d2) * 0.5f;
         }
     }
     return energy;
