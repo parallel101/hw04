@@ -45,7 +45,6 @@ void step() {
         float pz = stars.pz[i];
         float mass_Gdt = stars.mass[i] * Gdt;
         
-        #pragma omp simd
         for (int j = 0; j < N; j++) {
             float dx = px - stars.px[j];
             float dy = py - stars.py[j];
@@ -58,7 +57,6 @@ void step() {
         }
     }
 
-    #pragma omp simd
     for (int i = 0; i < N; i++) {
         stars.px[i] += stars.vx[i] * dt;
         stars.py[i] += stars.vy[i] * dt;
