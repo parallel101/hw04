@@ -3,6 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <cmath>
+#include <array>
 
 float frand() {
     return (float)rand() / RAND_MAX * 2 - 1;
@@ -11,22 +12,22 @@ float frand() {
 const int N = 48;
 
 struct StarField {
-    std::vector<float> px, py, pz;
-    std::vector<float> vx, vy, vz;
-    std::vector<float> mass;
+    std::array<float, N> px, py, pz;
+    std::array<float, N> vx, vy, vz;
+    std::array<float, N> mass;
 };
 
 StarField stars;
 
 void init() {
     for (int i = 0; i < N; i++) {
-        stars.px.push_back(frand());
-        stars.py.push_back(frand());
-        stars.pz.push_back(frand());
-        stars.vx.push_back(frand());
-        stars.vy.push_back(frand());
-        stars.vz.push_back(frand());
-        stars.mass.push_back(frand() + 1);
+        stars.px.fill(frand());
+        stars.py.fill(frand());
+        stars.pz.fill(frand());
+        stars.vx.fill(frand());
+        stars.vy.fill(frand());
+        stars.vz.fill(frand());
+        stars.mass.fill(frand() + 1);
     }
 }
 
@@ -39,13 +40,14 @@ void step() {
     float eps_square = eps * eps;
 
     // 原代码是内层不变, 我的代码是内层变
-    for (int i = 0; i < N; i++) {
+    for (size_t i = 0; i < N; i++) {
         float px = stars.px[i];
         float py = stars.py[i];
         float pz = stars.pz[i];
         float mass_Gdt = stars.mass[i] * Gdt;
         
-        for (int j = 0; j < N; j++) {
+        #pragma GCC unroll 2
+        for (size_t j = 0; j < N; j++) {
             float dx = px - stars.px[j];
             float dy = py - stars.py[j];
             float dz = pz - stars.pz[j];
@@ -57,7 +59,8 @@ void step() {
         }
     }
 
-    for (int i = 0; i < N; i++) {
+    #pragma GCC unroll 3
+    for (size_t i = 0; i < N; i++) {
         stars.px[i] += stars.vx[i] * dt;
         stars.py[i] += stars.vy[i] * dt;
         stars.pz[i] += stars.vz[i] * dt;
