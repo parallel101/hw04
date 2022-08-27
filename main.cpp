@@ -31,16 +31,18 @@ float eps = 0.001;
 float dt = 0.01;
 
 void step() {
+    float Gdt = G * dt;
+    float eps_square = eps * eps;
     for (auto &star: stars) {
         for (auto &other: stars) {
             float dx = other.px - star.px;
             float dy = other.py - star.py;
             float dz = other.pz - star.pz;
-            float d2 = dx * dx + dy * dy + dz * dz + eps * eps;
-            d2 *= sqrt(d2);
-            star.vx += dx * other.mass * G * dt / d2;
-            star.vy += dy * other.mass * G * dt / d2;
-            star.vz += dz * other.mass * G * dt / d2;
+            float d2 = dx * dx + dy * dy + dz * dz + eps_square;
+            d2 *= std::sqrt(d2);
+            star.vx += dx * other.mass * Gdt / d2;
+            star.vy += dy * other.mass * Gdt / d2;
+            star.vz += dz * other.mass * Gdt / d2;
         }
     }
     for (auto &star: stars) {
