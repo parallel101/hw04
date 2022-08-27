@@ -39,24 +39,26 @@ void step() {
     float Gdt = G * dt;
     float eps_square = eps * eps;
 
-    // 原代码是内层不变, 我的代码是内层变
+    // 修改为外层是变化的
     for (size_t i = 0; i < N; i++) {
-        float px = stars.px[i];
-        float py = stars.py[i];
-        float pz = stars.pz[i];
-        float mass_Gdt = stars.mass[i] * Gdt;
-        
+        float px = stars.px[i], py = stars.py[i], pz = stars.pz[i];
+        float vx = stars.vx[i], vy = stars.vy[i], vz = stars.vz[i];
+
         #pragma GCC unroll 2
         for (size_t j = 0; j < N; j++) {
-            float dx = px - stars.px[j];
-            float dy = py - stars.py[j];
-            float dz = pz - stars.pz[j];
+            float dx = stars.px[j] - px;
+            float dy = stars.py[j] - py;
+            float dz = stars.pz[j] - pz;
             float d2 = dx * dx + dy * dy + dz * dz + eps_square;
             d2 *= std::sqrt(d2);
-            stars.vx[j] += dx * mass_Gdt / d2;
-            stars.vy[j] += dy * mass_Gdt / d2;
-            stars.vz[j] += dz * mass_Gdt / d2;
+            vx += dx * stars.mass[j] * Gdt / d2;
+            vy += dy * stars.mass[j] * Gdt / d2;
+            vz += dz * stars.mass[j] * Gdt / d2;
         }
+
+        stars.vx[i] = vx;
+        stars.vy[i] = vy;
+        stars.vz[i] = vz;
     }
 
     #pragma GCC unroll 3
