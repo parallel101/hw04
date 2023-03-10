@@ -7,3 +7,13 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_executable(main main.cpp)
+if(MSVC)
+else()
+target_compile_options(main PUBLIC
+    -Wall
+    -Werror
+    -O3
+    -march=native
+    -ffast-math
+)
+endif()
