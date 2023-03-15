@@ -51,11 +51,9 @@ Time elapsed: 1734 ms
 加入编译指令
 
 ```
-#pragma g++ ivdep
-#pragma g++ unroll 4
+#pragma GCC ivdep
+#pragma GCC unroll 4
 ```
-
-循环展开后：
 
 Initial energy: -8.571302
 Final energy: -8.511518
@@ -66,3 +64,12 @@ Time elapsed: 1587 ms
 Initial energy: -8.571527
 Final energy: -8.511723
 Time elapsed: 1175 ms
+
+
+加入编译指令：
+
+`-ffast-math -march=native`
+
+Initial energy: -8.571527
+Final energy: -8.511747
+Time elapsed: 210 ms

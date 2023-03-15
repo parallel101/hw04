@@ -3,7 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <cmath>
-
+#include <x86intrin.h>
 #include <mmintrin.h> //mmx
 #include <xmmintrin.h> //sse
 #include <emmintrin.h> //sse2
@@ -52,25 +52,21 @@
 #pragma GCC optimize("-fexpensive-optimizations")
 #pragma GCC optimize("inline-functions-called-once")
 #pragma GCC optimize("-fdelete-null-pointer-checks")
-#pragma G++ ivdep
-#pragma G++ unroll 4
+
 
 float frand() {
     return (float)rand() / RAND_MAX * 2 - 1;
 }
 
-struct Star {
-    float px, py, pz;
-    float vx, vy, vz;
-    float mass, mass1;
-    Star(float _px,float _py,float _pz,float _vx,float _vy,float _vz,float _mass):
-        px(_px),py(_py),pz(_pz),vx(_vx),vy(_vy),vz(_vz),mass(_mass){}
-    Star() {}
-}stars[48];
+__declspec(align(16)) float px[48],py[48],pz[48];
+__declspec(align(16)) float vx[48],vy[48],vz[48];
+__declspec(align(16)) float mass[48];
 
 void init() {
     for (uint32_t i = 0; i < 48; i++) {
-        stars[i]= Star( frand(), frand(), frand(), frand(), frand(), frand(), frand() + 1);
+        px[i] = frand();py[i]=frand();pz[i] = frand();
+        vx[i] = frand();vy[i]=frand();vz[i]=frand();
+        mass[i] = frand()+1;
     }
 }
 
@@ -79,41 +75,43 @@ constexpr float eps = 0.001;
 constexpr float dt = 0.01;
 
 void step() {
+    float dx,dy,dz,d2;
     for (size_t i=0;i<(uint32_t)48;++i) {
         for (size_t j=0;j<(uint32_t)48;++j) {
             #pragma opm simd
-            float dx = stars[j].px - stars[i].px;
-            float dy = stars[j].py - stars[i].py;
-            float dz = stars[j].pz - stars[i].pz;
-            float d2 = dx * dx + dy * dy + dz * dz + (eps * eps);
+            dx = px[j] - px[i];
+            dy = py[j] - py[i];
+            dz = pz[j] - pz[i];
+            d2 = dx * dx + dy * dy + dz * dz + (eps * eps);
             d2 *= sqrt(d2);
-            d2 = stars[j].mass * G * dt / d2;
-            stars[i].vx += dx * d2;
-            stars[i].vy += dy * d2;
-            stars[i].vz += dz * d2;
+            d2 = mass[j] * G * dt / d2;
+            vx[i] += dx * d2;
+            vy[i] += dy * d2;
+            vz[i] += dz * d2;
         }
     }
     for(size_t i=0;i<48; ++i){
         #pragma opm simd
-        stars[i].px += stars[i].vx * dt;
-        stars[i].py += stars[i].vy * dt;
-        stars[i].pz += stars[i].vz * dt;
+        px[i] += vx[i] * dt;
+        py[i] += vy[i] * dt;
+        pz[i] += vz[i] * dt;
     }
 }
 
 float calc() {
+    float dx,dy,dz,d2;
     float energy = 0;
     for (size_t i=0;i<48;++i) {
         #pragma opm simd
-        float v2 = stars[i].vx * stars[i].vx + stars[i].vy * stars[i].vy + stars[i].vz * stars[i].vz;
-        energy += stars[i].mass * v2 * 0.5;
+        float v2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
+        energy += mass[i] * v2 * 0.5;
         for (size_t j=0;j<48;++j) {
             #pragma opm simd
-            float dx = stars[j].px - stars[i].px;
-            float dy = stars[j].py - stars[i].py;
-            float dz = stars[j].pz - stars[i].pz;
-            float d2 =  (dx * dx + dy * dy + dz * dz + (eps * eps));
-            energy -= stars[j].mass * stars[i].mass * 0.0005 / sqrt(d2);
+            dx = px[j] - px[i];
+            dy = py[j] - py[i];
+            dz = pz[j] - pz[i];
+            d2 =  (dx * dx + dy * dy + dz * dz + (eps * eps));
+            energy -= mass[j] * mass[i] * 0.0005 / sqrt(d2);
         }
     }
     return energy;
