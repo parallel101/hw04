@@ -78,7 +78,7 @@ void step() {
     float dx,dy,dz,d2;
     for (size_t i=0;i<(uint32_t)48;++i) {
         for (size_t j=0;j<(uint32_t)48;++j) {
-            #pragma opm simd
+            // #pragma omp simd
             dx = px[j] - px[i];
             dy = py[j] - py[i];
             dz = pz[j] - pz[i];
@@ -91,7 +91,7 @@ void step() {
         }
     }
     for(size_t i=0;i<48; ++i){
-        #pragma opm simd
+        // #pragma omp simd
         px[i] += vx[i] * dt;
         py[i] += vy[i] * dt;
         pz[i] += vz[i] * dt;
@@ -102,11 +102,11 @@ float calc() {
     float dx,dy,dz,d2;
     float energy = 0;
     for (size_t i=0;i<48;++i) {
-        #pragma opm simd
+        // #pragma omp simd
         float v2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
         energy += mass[i] * v2 * 0.5;
         for (size_t j=0;j<48;++j) {
-            #pragma opm simd
+            // #pragma omp simd
             dx = px[j] - px[i];
             dy = py[j] - py[i];
             dz = pz[j] - pz[i];
