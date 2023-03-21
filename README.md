@@ -29,3 +29,47 @@
 - 不允许做算法复杂度优化
 - 可以针对编译器和平台优化，这次不要求跨平台
 - 可以用 xmmintrin.h，如果你觉得编译器靠不住的话
+
+初始数据:
+
+Initial energy: -8.571526
+Final energy: -8.511777
+Time elapsed: 6646 ms
+
+编译指令加入O3优化：
+
+Initial energy: -8.571526
+Final energy: -8.511777
+Time elapsed: 1737 ms
+
+将结构体OOP改成DOP
+
+Initial energy: -8.571526
+Final energy: -8.511777
+Time elapsed: 1734 ms
+
+加入编译指令
+
+```
+#pragma GCC ivdep
+#pragma GCC unroll 4
+```
+
+Initial energy: -8.571302
+Final energy: -8.511518
+Time elapsed: 1587 ms
+
+加上暴力火车头：
+
+Initial energy: -8.571527
+Final energy: -8.511723
+Time elapsed: 1175 ms
+
+
+加入编译指令：
+
+`-ffast-math -march=native`
+
+Initial energy: -8.571527
+Final energy: -8.511747
+Time elapsed: 210 ms
