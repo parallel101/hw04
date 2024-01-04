@@ -1,21 +1,33 @@
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
 #include <chrono>
 #include <cmath>
+#include <array>
 
-float frand() {
-    return (float)rand() / RAND_MAX * 2 - 1;
+
+const int N = 48;
+
+static float frand() {
+    return (float)std::rand() / RAND_MAX * 2 - 1;
 }
 
+/* 
 struct Star {
     float px, py, pz;
     float vx, vy, vz;
     float mass;
 };
+*/
 
-std::vector<Star> stars;
+struct Star{
+	std::array<float, N> px, py, pz;
+	std::array<float, N> vx, vy, vz;
+	std::array<float, N> mass;
+};
 
+Star stars;
+
+/*
 void init() {
     for (int i = 0; i < 48; i++) {
         stars.push_back({
@@ -25,11 +37,26 @@ void init() {
         });
     }
 }
+*/
+
+void init() {
+	for (int i = 0; i < N; i ++) {
+		stars.px[i] = frand();
+		stars.py[i] = frand();
+		stars.pz[i] = frand();
+		stars.vx[i] = frand();
+		stars.vy[i] = frand();
+		stars.vz[i] = frand();
+		stars.mass[i] = frand();
+	}
+}
+
 
 float G = 0.001;
 float eps = 0.001;
 float dt = 0.01;
 
+/*
 void step() {
     for (auto &star: stars) {
         for (auto &other: stars) {
@@ -49,7 +76,38 @@ void step() {
         star.pz += star.vz * dt;
     }
 }
+*/
 
+void step() {
+	const float t = G * dt;
+	const float epss = eps * eps;
+	for (int i = 0; i < N; i ++) {
+		float px = stars.px[i], py = stars.py[i], pz = stars.pz[i];
+		float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+		for (int j = 0; j < N; j ++) {
+			float dx = stars.px[j] - px;
+			float dy = stars.py[j] - py;
+			float dz = stars.pz[j] - pz;
+			float d2 = dx * dx + dy * dy + dz * dz + epss;
+			d2 *= std::sqrt(d2);
+			float xx = (1 / d2) * t * stars.mass[j];
+			vx += dx * xx;
+			vy += dy * xx;
+			vz += dz * xx;
+		}
+		stars.vx[i] += vx;
+		stars.vy[i] += vy;
+		stars.vz[i] += vz; 
+	}
+
+	for (int i = 0; i < N; i ++) {
+		stars.px[i] += stars.vx[i] * dt;
+		stars.py[i] += stars.vy[i] * dt;
+		stars.pz[i] += stars.vz[i] * dt;
+	}
+}
+
+/*
 float calc() {
     float energy = 0;
     for (auto &star: stars) {
@@ -65,6 +123,27 @@ float calc() {
     }
     return energy;
 }
+*/
+
+float calc() {
+	float energy = 0;
+	const float epss = eps * eps;
+	for (int i = 0; i < N; i ++) {
+		float v2 = stars.vx[i] * stars.vx[i] + stars.vy[i] * stars.vy[i] + stars.vz[i] * stars.vz[i];
+		energy += stars.mass[i] * v2 * 0.5f;
+		float px = stars.px[i], py = stars.py[i], pz = stars.pz[i];
+		for (int j = 0; j < N; j ++) {
+			float dx = stars.px[j] - px;
+			float dy = stars.py[j] - py;
+			float dz = stars.py[j] - pz;
+			float d2 = dx * dx + dy * dy + dz * dz + epss;
+			float s_d2 = 1 / std::sqrt(d2);
+			energy -= stars.mass[j] * stars.mass[i] * G * 0.5; 
+		}	
+	}
+	return energy;
+}
+
 
 template <class Func>
 long benchmark(Func const &func) {
